@@ -1,0 +1,44 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
+import { VERSION } from './config.js';
+import { AppContext, createContext } from './context.js';
+import { registerBucketTools } from './tools/buckets.js';
+import { registerEventTools } from './tools/events.js';
+import { registerMetaTools } from './tools/meta.js';
+import { registerMiscTools } from './tools/misc.js';
+import { registerNoteTools } from './tools/notes.js';
+import { registerObjectiveTools } from './tools/objectives.js';
+import { registerPrompts } from './tools/prompts.js';
+import { registerScheduleTools } from './tools/schedule.js';
+import { registerSchedulingTools } from './tools/scheduling.js';
+import { registerSearchTools } from './tools/search.js';
+import { registerTaskTools } from './tools/tasks.js';
+
+export function buildServer(ctx: AppContext): McpServer {
+  const server = new McpServer({ name: 'fokus', version: VERSION });
+  registerMetaTools(server, ctx);
+  registerTaskTools(server, ctx);
+  registerEventTools(server, ctx);
+  registerNoteTools(server, ctx);
+  registerBucketTools(server, ctx);
+  registerObjectiveTools(server, ctx);
+  registerMiscTools(server, ctx);
+  registerSearchTools(server, ctx);
+  registerScheduleTools(server, ctx);
+  registerSchedulingTools(server, ctx);
+  registerPrompts(server, ctx);
+  return server;
+}
+
+export async function serve(): Promise<void> {
+  const ctx = createContext();
+  const server = buildServer(ctx);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  // stdout is the protocol channel — status goes to stderr
+  console.error(`fokus-mcp v${VERSION} connected (API: ${ctx.apiUrl})`);
+  if (!ctx.tokens.profile) {
+    console.error('Warning: not logged in — tools will fail until you run: fokus-mcp login');
+  }
+}
