@@ -1,0 +1,50 @@
+{
+  "name": "@fokus-app/mcp",
+  "version": "0.1.0",
+  "description": "Official MCP server for Fokus — manage tasks, notes, calendar, and objectives from any AI assistant",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "fokus-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "types:check": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run types:check && npm run test && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "fokus",
+    "productivity",
+    "tasks",
+    "calendar"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "marked": "^18.0.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "prettier": "^3.5.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.10"
+  }
+}
