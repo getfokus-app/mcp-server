@@ -9,6 +9,8 @@ import {
   DATE_HINT,
   DESTRUCTIVE,
   Doc,
+  MAX_CONTENT_CHARS,
+  enc,
   READ_ONLY,
   UPDATE,
   WRITE,
@@ -52,7 +54,11 @@ export function slimTask(task: Doc): Doc {
 
 const createTaskFields = {
   title: z.string().describe('Task title'),
-  description: z.string().optional().describe('Task description in markdown'),
+  description: z
+    .string()
+    .max(MAX_CONTENT_CHARS)
+    .optional()
+    .describe('Task description in markdown'),
   priority: z.enum(['low', 'medium', 'high']).optional(),
   energyLevel: z
     .enum(['light', 'moderate', 'extensive'])
@@ -195,7 +201,7 @@ export function registerTaskTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ taskId, includeDescription }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/tasks/${taskId}`);
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/tasks/${enc(taskId)}`);
         const task = slimTask(data);
         if (includeDescription !== false) {
           const description = await fetchDescriptionMarkdown(ctx, taskId);
@@ -271,7 +277,11 @@ export function registerTaskTools(server: McpServer, ctx: AppContext): void {
       inputSchema: {
         taskId: z.string(),
         title: z.string().optional(),
-        description: z.string().optional().describe('New description in markdown (replaces)'),
+        description: z
+          .string()
+          .max(MAX_CONTENT_CHARS)
+          .optional()
+          .describe('New description in markdown (replaces)'),
         priority: z.enum(['low', 'medium', 'high']).optional(),
         energyLevel: z.enum(['light', 'moderate', 'extensive']).optional(),
         estimatedTime: z.number().int().positive().optional(),
@@ -301,7 +311,7 @@ export function registerTaskTools(server: McpServer, ctx: AppContext): void {
         if (input.end === null) dto.end = null;
         if (isPinned !== undefined) dto.isPinned = isPinned;
         if (blockedBy !== undefined) dto.blockedBy = blockedBy;
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/tasks/${taskId}`, {
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/tasks/${enc(taskId)}`, {
           method: 'PUT',
           body: dto,
         });
@@ -323,7 +333,7 @@ export function registerTaskTools(server: McpServer, ctx: AppContext): void {
     async ({ taskId, completed }) =>
       run(async () => {
         const isCompleted = completed !== false;
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/tasks/${taskId}`, {
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/tasks/${enc(taskId)}`, {
           method: 'PUT',
           body: { isCompleted },
         });
@@ -341,7 +351,7 @@ export function registerTaskTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ taskId }) =>
       run(async () => {
-        await ctx.client.request(`/v1/tasks/${taskId}`, { method: 'DELETE' });
+        await ctx.client.request(`/v1/tasks/${enc(taskId)}`, { method: 'DELETE' });
         return textResult(`Task ${taskId} deleted.`);
       }),
   );

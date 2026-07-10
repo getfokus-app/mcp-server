@@ -7,6 +7,7 @@ import { AppContext } from '../context.js';
 import {
   DESTRUCTIVE,
   Doc,
+  enc,
   READ_ONLY,
   UPDATE,
   WRITE,
@@ -103,7 +104,7 @@ export function registerBucketTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ bucketId, ...input }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/buckets/${bucketId}`, {
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/buckets/${enc(bucketId)}`, {
           method: 'PUT',
           body: compact({
             title: input.title,
@@ -128,7 +129,7 @@ export function registerBucketTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ bucketId }) =>
       run(async () => {
-        await ctx.client.request(`/v1/buckets/${bucketId}`, { method: 'DELETE' });
+        await ctx.client.request(`/v1/buckets/${enc(bucketId)}`, { method: 'DELETE' });
         return textResult(`Bucket ${bucketId} deleted.`);
       }),
   );

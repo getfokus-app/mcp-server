@@ -29,3 +29,23 @@ export function linkMark(href: string): TipTapMark {
     attrs: { href, target: '_blank', rel: 'noopener noreferrer nofollow', class: null },
   };
 }
+
+const SAFE_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+/**
+ * Accept a link/image URL only if it is scheme-relative/relative or uses a safe
+ * scheme. Blocks active-content URLs (javascript:, data:, vbscript:, file:...)
+ * from being persisted into stored note content — defense in depth on top of
+ * the web editor's own render-time sanitization.
+ */
+export function isSafeUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (trimmed === '') return false;
+  // relative or protocol-relative URLs have no scheme of their own
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return true;
+  try {
+    return SAFE_URL_SCHEMES.has(new URL(trimmed).protocol);
+  } catch {
+    return false;
+  }
+}
