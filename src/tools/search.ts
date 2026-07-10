@@ -1,9 +1,9 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { ListResponse } from '../api/http.js';
 import { buildListQuery, containsRegex } from '../api/query.js';
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import { Doc, READ_ONLY, jsonResult, run } from './shared.js';
 
 const TYPES = ['tasks', 'events', 'notes', 'objectives', 'buckets', 'tags'] as const;
@@ -49,7 +49,7 @@ const TARGETS: Record<SearchType, SearchTarget> = {
   },
 };
 
-export function registerSearchTools(server: McpServer, ctx: AppContext): void {
+export function registerSearchTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'search',
     {

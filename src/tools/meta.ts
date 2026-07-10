@@ -1,7 +1,7 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import { READ_ONLY, UPDATE, jsonResult, run, textResult } from './shared.js';
 
 interface WorkspaceInfo {
@@ -57,7 +57,7 @@ export function nowInTimezone(timeZone: string): {
   return { timezone: timeZone, iso, weekday, readable };
 }
 
-export function registerMetaTools(server: McpServer, ctx: AppContext): void {
+export function registerMetaTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'get_current_user',
     {

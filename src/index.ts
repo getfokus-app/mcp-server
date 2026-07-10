@@ -1,5 +1,6 @@
 import { login } from './cli/login.js';
 import { logout } from './cli/logout.js';
+import { listTools, toolCommand } from './cli/tool.js';
 import { whoami } from './cli/whoami.js';
 import { workspaceCommand } from './cli/workspace.js';
 import { VERSION } from './config.js';
@@ -16,6 +17,10 @@ Usage:
   fokus-mcp logout          Revoke the session and remove local credentials
   fokus-mcp whoami          Show the logged-in user and active workspace
   fokus-mcp workspace [id]  List workspaces, or set the default workspace
+  fokus-mcp tools           List tools available for direct invocation
+    --json                             Machine-readable listing with input schemas
+  fokus-mcp tool <name> ['<json-args>']
+                            Invoke a tool directly (pass '-' to read JSON args from stdin)
   fokus-mcp help            Show this help
 
 Environment:
@@ -36,6 +41,12 @@ async function main(): Promise<void> {
       break;
     case 'workspace':
       await workspaceCommand(rest);
+      break;
+    case 'tools':
+      await listTools(rest);
+      break;
+    case 'tool':
+      await toolCommand(rest);
       break;
     case 'help':
     case '--help':
