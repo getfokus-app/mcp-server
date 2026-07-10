@@ -53,6 +53,8 @@ Cursor (`.cursor/mcp.json`): same shape as Claude Desktop.
 | `fokus-mcp logout`                                                       | Revoke the session server-side and delete local credentials      |
 | `fokus-mcp whoami`                                                       | Show the logged-in user, timezone, workspace, and session expiry |
 | `fokus-mcp workspace [id\|name]`                                         | List workspaces or change the default                            |
+| `fokus-mcp tools [--json]`                                               | List all tools (`--json` includes input schemas)                 |
+| `fokus-mcp tool <name> ['<json-args>' \| -]`                             | Invoke a tool directly, without an MCP client (see below)        |
 
 ## Tools
 
@@ -71,6 +73,24 @@ Cursor (`.cursor/mcp.json`): same shape as Claude Desktop.
 Recurring tasks/events are created by passing `recurringPattern` (an RRULE set incl. `DTSTART`) to `create_task` / `create_event`.
 
 Two prompts ship with the server: `daily_planning` and `weekly_review`.
+
+## Direct tool invocation (scripts & agent skills)
+
+Every tool can also be called from the shell — same auth, workspace handling, and markdown
+conversion as over MCP. This is what the `fokus` skill for OpenClaw and Hermes Agent uses
+(see the `agent-skills` repo), and it works for plain scripting too:
+
+```bash
+fokus-mcp tool get_current_datetime
+fokus-mcp tool list_tasks '{"status":"open","limit":10}'
+fokus-mcp tool create_task '{"title":"Review Q3 report","priority":"high","estimatedTime":60}'
+echo '{"title":"Standup notes","content":"# Monday\n\n- shipped the beta"}' | fokus-mcp tool create_note -
+```
+
+The text result prints to stdout; errors go to stderr with a non-zero exit code. Invalid
+arguments print the tool's expected parameters. Pass `-` to read JSON args from stdin
+(handy for long markdown content). Note that `set_active_workspace` only lasts for a single
+invocation here — use `fokus-mcp workspace <id|name>` to switch persistently.
 
 ## Configuration
 
