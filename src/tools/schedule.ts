@@ -1,9 +1,9 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { ListResponse } from '../api/http.js';
 import { buildListQuery, compact, dateRange } from '../api/query.js';
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import { DATE_HINT, Doc, READ_ONLY, jsonResult, run } from './shared.js';
 import { slimEvent } from './events.js';
 import { slimTask } from './tasks.js';
@@ -22,7 +22,7 @@ function dayKey(iso: string, timeZone: string): string {
   }
 }
 
-export function registerScheduleTools(server: McpServer, ctx: AppContext): void {
+export function registerScheduleTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'get_schedule',
     {

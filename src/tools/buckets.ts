@@ -1,9 +1,9 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { ListResponse } from '../api/http.js';
 import { buildListQuery, compact, containsRegex } from '../api/query.js';
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import {
   DESTRUCTIVE,
   Doc,
@@ -29,7 +29,7 @@ function slimBucket(bucket: Doc): Doc {
   });
 }
 
-export function registerBucketTools(server: McpServer, ctx: AppContext): void {
+export function registerBucketTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'list_buckets',
     {

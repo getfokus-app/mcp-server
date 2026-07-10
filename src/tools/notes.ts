@@ -1,9 +1,9 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { ListResponse } from '../api/http.js';
 import { buildListQuery, compact, containsRegex } from '../api/query.js';
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import { markdownToTipTapDoc, markdownToTipTapJson } from '../markdown/md-to-tiptap.js';
 import { tipTapJsonToMarkdown } from '../markdown/tiptap-to-md.js';
 import { TipTapNode } from '../markdown/tiptap-types.js';
@@ -43,7 +43,7 @@ function slimNote(note: Doc, withSnippet = true): Doc {
   });
 }
 
-export function registerNoteTools(server: McpServer, ctx: AppContext): void {
+export function registerNoteTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'list_notes',
     {

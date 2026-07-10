@@ -1,15 +1,15 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { compact } from '../api/query.js';
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import { DATE_HINT, Doc, READ_ONLY, WRITE, jsonResult, run, textResult } from './shared.js';
 
 /**
  * Fokus auto-scheduling: the backend prepares tasks/events/preferences and submits them to
  * the Timefold constraint solver, returning a job id. Poll the job, then apply the result.
  */
-export function registerSchedulingTools(server: McpServer, ctx: AppContext): void {
+export function registerSchedulingTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'auto_schedule_tasks',
     {

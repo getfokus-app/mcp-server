@@ -1,9 +1,9 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { ListResponse } from '../api/http.js';
 import { buildListQuery, compact, containsRegex } from '../api/query.js';
 import { AppContext } from '../context.js';
+import type { ToolRegistry } from './registry.js';
 import { markdownToTipTapJson } from '../markdown/md-to-tiptap.js';
 import {
   DATE_HINT,
@@ -39,7 +39,7 @@ function slimObjective(objective: Doc): Doc {
   });
 }
 
-export function registerObjectiveTools(server: McpServer, ctx: AppContext): void {
+export function registerObjectiveTools(server: ToolRegistry, ctx: AppContext): void {
   server.registerTool(
     'list_objectives',
     {
