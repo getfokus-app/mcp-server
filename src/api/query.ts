@@ -10,10 +10,26 @@ export interface ListParams {
   limit?: number;
 }
 
+/**
+ * The fps filter validator requires every value in a filter to have the same
+ * shape (all scalars OR all operator objects) — a mixed
+ * `{isCompleted: false, doDate: {$gte: ...}}` is rejected. Wrapping scalars as
+ * `{$eq: value}` makes every filter uniformly operator-shaped, which MongoDB
+ * treats identically.
+ */
+function normalizeFilter(filter: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(filter).map(([key, value]) => [
+      key,
+      value !== null && typeof value === 'object' ? value : { $eq: value },
+    ]),
+  );
+}
+
 export function buildListQuery(params: ListParams): string {
   const qs = new URLSearchParams();
   if (params.filter && Object.keys(params.filter).length > 0) {
-    qs.set('filter', JSON.stringify(params.filter));
+    qs.set('filter', JSON.stringify(normalizeFilter(params.filter)));
   }
   if (params.sort) qs.set('sort', params.sort);
   if (params.page) qs.set('page', String(params.page));

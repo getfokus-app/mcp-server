@@ -139,6 +139,8 @@ export function registerObjectiveTools(server: McpServer, ctx: AppContext): void
             period: input.period,
             start: input.start,
             end: input.end,
+            // required by the API on create
+            isCompleted: false,
             bucket: input.bucketId,
             descriptionNote: input.description
               ? markdownToTipTapJson(input.description)
