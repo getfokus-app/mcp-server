@@ -9,6 +9,8 @@ import {
   DATE_HINT,
   DESTRUCTIVE,
   Doc,
+  MAX_CONTENT_CHARS,
+  enc,
   READ_ONLY,
   UPDATE,
   WRITE,
@@ -65,7 +67,11 @@ const eventFields = {
     .optional()
     .describe("Calendar id — defaults to the user's primary calendar"),
   bucketId: z.string().optional(),
-  description: z.string().optional().describe('Event description in markdown'),
+  description: z
+    .string()
+    .max(MAX_CONTENT_CHARS)
+    .optional()
+    .describe('Event description in markdown'),
   recurringPattern: z.string().optional().describe('RRULE set incl. DTSTART for recurring events'),
   excludeFromScheduling: z
     .boolean()
@@ -153,7 +159,7 @@ export function registerEventTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ eventId, includeDescription }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/events/${eventId}`);
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/events/${enc(eventId)}`);
         const event = slimEvent(data);
         if (includeDescription !== false) {
           const description = await fetchDescriptionMarkdown(ctx, eventId);
@@ -200,14 +206,18 @@ export function registerEventTools(server: McpServer, ctx: AppContext): void {
         status: z.enum(['confirmed', 'tentative', 'cancelled']).optional(),
         calendarId: z.string().optional(),
         bucketId: z.string().optional(),
-        description: z.string().optional().describe('New description in markdown (replaces)'),
+        description: z
+          .string()
+          .max(MAX_CONTENT_CHARS)
+          .optional()
+          .describe('New description in markdown (replaces)'),
         excludeFromScheduling: z.boolean().optional(),
       },
       annotations: UPDATE,
     },
     async ({ eventId, ...input }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/events/${eventId}`, {
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/events/${enc(eventId)}`, {
           method: 'PUT',
           body: toEventDto(ctx, input),
         });
@@ -227,7 +237,7 @@ export function registerEventTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ eventId }) =>
       run(async () => {
-        await ctx.client.request(`/v1/events/${eventId}`, { method: 'DELETE' });
+        await ctx.client.request(`/v1/events/${enc(eventId)}`, { method: 'DELETE' });
         return textResult(`Event ${eventId} deleted.`);
       }),
   );

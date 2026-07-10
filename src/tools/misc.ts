@@ -8,6 +8,7 @@ import {
   DATE_HINT,
   DESTRUCTIVE,
   Doc,
+  enc,
   READ_ONLY,
   UPDATE,
   WRITE,
@@ -193,10 +194,13 @@ export function registerMiscTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ reminderId, ...input }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/reminders/${reminderId}`, {
-          method: 'PUT',
-          body: compact(input),
-        });
+        const { data } = await ctx.client.request<{ data: Doc }>(
+          `/v1/reminders/${enc(reminderId)}`,
+          {
+            method: 'PUT',
+            body: compact(input),
+          },
+        );
         return jsonResult('Reminder updated', { id: data._id, date: data.date });
       }),
   );
@@ -211,7 +215,7 @@ export function registerMiscTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ reminderId }) =>
       run(async () => {
-        await ctx.client.request(`/v1/reminders/${reminderId}`, { method: 'DELETE' });
+        await ctx.client.request(`/v1/reminders/${enc(reminderId)}`, { method: 'DELETE' });
         return textResult(`Reminder ${reminderId} deleted.`);
       }),
   );

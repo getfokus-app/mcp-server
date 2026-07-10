@@ -80,7 +80,7 @@ Two prompts ship with the server: `daily_planning` and `weekly_review`.
 
 ## Security notes
 
-- Credentials live in `~/.config/fokus-mcp/credentials.json` (`%APPDATA%\fokus-mcp` on Windows) with `0600` permissions.
+- Credentials live in `~/.config/fokus-mcp/credentials.json`, written owner-only (`0600`) inside a `0700` directory. On Windows the file lives at `%APPDATA%\fokus-mcp`, which is user-profile-scoped by its inherited ACL (POSIX mode bits don't apply there).
 - Fokus refresh tokens rotate on every use and expire after **7 idle days** — if you don't use the server for a week, run `fokus-mcp login` again.
 - `fokus-mcp logout` revokes the session server-side; you can also revoke all sessions by changing your password.
 - Delete/overwrite tools are annotated `destructiveHint` so MCP clients can ask for confirmation.

@@ -11,8 +11,11 @@ import {
   DATE_HINT,
   DESTRUCTIVE,
   Doc,
+  MAX_CONTENT_CHARS,
   READ_ONLY,
   WRITE,
+  capContent,
+  enc,
   jsonResult,
   paginationHeader,
   refId,
@@ -101,9 +104,9 @@ export function registerNoteTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ noteId }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/notes/${noteId}`);
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/notes/${enc(noteId)}`);
         const note = slimNote(data, false);
-        note.content = tipTapJsonToMarkdown(String(data.content ?? ''));
+        note.content = capContent(tipTapJsonToMarkdown(String(data.content ?? '')));
         return jsonResult(undefined, note);
       }),
   );
@@ -117,7 +120,7 @@ export function registerNoteTools(server: McpServer, ctx: AppContext): void {
         'lists, tables, code blocks, links all render in Fokus).',
       inputSchema: {
         title: z.string().describe('Note title'),
-        content: z.string().describe('Note content in markdown'),
+        content: z.string().max(MAX_CONTENT_CHARS).describe('Note content in markdown'),
         icon: z.string().optional().describe('Emoji icon (default 📝)'),
         bucketId: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
@@ -155,8 +158,16 @@ export function registerNoteTools(server: McpServer, ctx: AppContext): void {
         noteId: z.string(),
         title: z.string().optional(),
         icon: z.string().optional(),
-        content: z.string().optional().describe('Replacement content in markdown'),
-        appendContent: z.string().optional().describe('Markdown blocks appended to the note'),
+        content: z
+          .string()
+          .max(MAX_CONTENT_CHARS)
+          .optional()
+          .describe('Replacement content in markdown'),
+        appendContent: z
+          .string()
+          .max(MAX_CONTENT_CHARS)
+          .optional()
+          .describe('Markdown blocks appended to the note'),
       },
       // content replacement overwrites the existing body
       annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
@@ -170,7 +181,7 @@ export function registerNoteTools(server: McpServer, ctx: AppContext): void {
         if (content !== undefined) {
           body.content = markdownToTipTapJson(content);
         } else if (appendContent !== undefined) {
-          const { data } = await ctx.client.request<{ data: Doc }>(`/v1/notes/${noteId}`);
+          const { data } = await ctx.client.request<{ data: Doc }>(`/v1/notes/${enc(noteId)}`);
           let existing: TipTapNode;
           try {
             existing = JSON.parse(String(data.content ?? '')) as TipTapNode;
@@ -191,7 +202,7 @@ export function registerNoteTools(server: McpServer, ctx: AppContext): void {
         if (Object.keys(body).length === 0) {
           return textResult('Nothing to update — provide title, icon, content, or appendContent.');
         }
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/notes/${noteId}`, {
+        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/notes/${enc(noteId)}`, {
           method: 'PUT',
           body,
         });
@@ -209,7 +220,7 @@ export function registerNoteTools(server: McpServer, ctx: AppContext): void {
     },
     async ({ noteId }) =>
       run(async () => {
-        await ctx.client.request(`/v1/notes/${noteId}`, { method: 'DELETE' });
+        await ctx.client.request(`/v1/notes/${enc(noteId)}`, { method: 'DELETE' });
         return textResult(`Note ${noteId} deleted.`);
       }),
   );

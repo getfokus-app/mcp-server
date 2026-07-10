@@ -1,5 +1,8 @@
 import { TipTapMark, TipTapNode } from './tiptap-types.js';
 
+/** Bail out of runaway nesting rather than overflow the stack on hostile stored content. */
+const MAX_DEPTH = 100;
+
 /**
  * Convert stored note content (stringified TipTap JSON) to markdown.
  *
@@ -7,6 +10,8 @@ import { TipTapMark, TipTapNode } from './tiptap-types.js';
  * same plain-text fallback), and web-only nodes degrade gracefully — underline
  * to plain text, highlight to ==text==, details to a bold summary line,
  * mentions to @label, mermaid to a fenced block, drawings to a placeholder.
+ * Nesting beyond MAX_DEPTH is truncated so a maliciously deep doc can't overflow
+ * the stack.
  */
 export function tipTapJsonToMarkdown(content: string): string {
   if (!content) return '';
@@ -17,25 +22,26 @@ export function tipTapJsonToMarkdown(content: string): string {
     return content;
   }
   if (!doc || typeof doc !== 'object' || doc.type !== 'doc') return content;
-  return renderBlocks(doc.content ?? [])
+  return renderBlocks(doc.content ?? [], 0)
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
-function renderBlocks(nodes: TipTapNode[]): string {
+function renderBlocks(nodes: TipTapNode[], depth: number): string {
+  if (depth > MAX_DEPTH) return '[truncated: content too deeply nested]';
   return nodes
-    .map((node) => renderBlock(node))
+    .map((node) => renderBlock(node, depth))
     .filter(Boolean)
     .join('\n\n');
 }
 
-function renderBlock(node: TipTapNode): string {
+function renderBlock(node: TipTapNode, depth: number): string {
   switch (node.type) {
     case 'paragraph':
-      return renderInline(node.content);
+      return renderInline(node.content, depth);
     case 'heading': {
       const level = clampLevel(node.attrs?.level);
-      return `${'#'.repeat(level)} ${renderInline(node.content)}`;
+      return `${'#'.repeat(level)} ${renderInline(node.content, depth)}`;
     }
     case 'codeBlock': {
       const language = typeof node.attrs?.language === 'string' ? node.attrs.language : '';
@@ -46,39 +52,41 @@ function renderBlock(node: TipTapNode): string {
       return code ? fence(code, 'mermaid') : '[unsupported: diagram]';
     }
     case 'blockquote':
-      return renderBlocks(node.content ?? [])
+      return renderBlocks(node.content ?? [], depth + 1)
         .split('\n')
         .map((line) => `> ${line}`)
         .join('\n');
     case 'bulletList':
-      return renderListItems(node.content ?? [], () => '- ');
+      return renderListItems(node.content ?? [], () => '- ', depth);
     case 'orderedList': {
       const start = typeof node.attrs?.start === 'number' ? node.attrs.start : 1;
-      return renderListItems(node.content ?? [], (i) => `${start + i}. `);
+      return renderListItems(node.content ?? [], (i) => `${start + i}. `, depth);
     }
     case 'taskList':
-      return renderListItems(node.content ?? [], (_, item) =>
-        item.attrs?.checked === true ? '- [x] ' : '- [ ] ',
+      return renderListItems(
+        node.content ?? [],
+        (_, item) => (item.attrs?.checked === true ? '- [x] ' : '- [ ] '),
+        depth,
       );
     case 'horizontalRule':
       return '---';
     case 'table':
-      return renderTable(node);
+      return renderTable(node, depth);
     case 'image':
       return renderImage(node);
     case 'details': {
       const summary = node.content?.find((c) => c.type === 'detailsSummary');
       const body = node.content?.find((c) => c.type === 'detailsContent');
       const parts: string[] = [];
-      if (summary) parts.push(`**${renderInline(summary.content)}**`);
-      if (body) parts.push(renderBlocks(body.content ?? []));
+      if (summary) parts.push(`**${renderInline(summary.content, depth)}**`);
+      if (body) parts.push(renderBlocks(body.content ?? [], depth + 1));
       return parts.join('\n\n');
     }
     case 'excalidrawEmbed':
       return '[unsupported: drawing]';
     default: {
       // unknown block: render children if any, else its text, else a placeholder
-      if (node.content?.length) return renderBlocks(node.content);
+      if (node.content?.length) return renderBlocks(node.content, depth + 1);
       if (node.text) return node.text;
       return `[unsupported: ${node.type}]`;
     }
@@ -88,11 +96,12 @@ function renderBlock(node: TipTapNode): string {
 function renderListItems(
   items: TipTapNode[],
   prefix: (index: number, item: TipTapNode) => string,
+  depth: number,
 ): string {
   return items
     .map((item, i) => {
       const marker = prefix(i, item);
-      const body = renderBlocks(item.content ?? []);
+      const body = renderBlocks(item.content ?? [], depth + 1);
       const lines = body.split('\n');
       const indent = ' '.repeat(marker.length);
       return lines
@@ -102,11 +111,13 @@ function renderListItems(
     .join('\n');
 }
 
-function renderTable(node: TipTapNode): string {
+function renderTable(node: TipTapNode, depth: number): string {
   const rows = (node.content ?? []).filter((row) => row.type === 'tableRow');
   if (rows.length === 0) return '';
   const cells = (row: TipTapNode) =>
-    (row.content ?? []).map((cell) => renderBlocks(cell.content ?? []).replace(/\n/g, ' '));
+    (row.content ?? []).map((cell) =>
+      renderBlocks(cell.content ?? [], depth + 1).replace(/\n/g, ' '),
+    );
   const header = cells(rows[0]!);
   const lines = [
     `| ${header.join(' | ')} |`,
@@ -122,8 +133,8 @@ function renderImage(node: TipTapNode): string {
   return src ? `![${alt}](${src})` : '';
 }
 
-function renderInline(nodes: TipTapNode[] | undefined): string {
-  if (!nodes) return '';
+function renderInline(nodes: TipTapNode[] | undefined, depth: number): string {
+  if (!nodes || depth > MAX_DEPTH) return '';
   return nodes
     .map((node) => {
       switch (node.type) {
@@ -142,7 +153,7 @@ function renderInline(nodes: TipTapNode[] | undefined): string {
           return latex ? `$${String(latex)}$` : '';
         }
         default:
-          if (node.content?.length) return renderInline(node.content);
+          if (node.content?.length) return renderInline(node.content, depth + 1);
           return node.text ?? '';
       }
     })
@@ -181,9 +192,10 @@ function applyMarks(text: string, marks: TipTapMark[] | undefined): string {
   return href ? `[${out}](${href})` : out;
 }
 
-function plainText(node: TipTapNode): string {
+function plainText(node: TipTapNode, depth = 0): string {
   if (node.text) return node.text;
-  return (node.content ?? []).map(plainText).join('');
+  if (depth > MAX_DEPTH) return '';
+  return (node.content ?? []).map((child) => plainText(child, depth + 1)).join('');
 }
 
 function fence(code: string, language: string): string {

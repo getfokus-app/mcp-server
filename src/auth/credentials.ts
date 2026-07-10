@@ -48,13 +48,19 @@ export function loadCredentials(): CredentialsFile {
   return { clientId: randomUUID(), profiles: {} };
 }
 
-/** Atomic write (tmp + rename) so concurrent MCP processes never read a torn file. */
+/**
+ * Atomic write (tmp + rename) so concurrent MCP processes never read a torn file.
+ * The temp name is randomized and opened with 'wx' (O_EXCL) so a pre-planted
+ * symlink at the path can't redirect the token-bearing write.
+ * Note: the 0600/0700 modes are POSIX permission bits — Node ignores them on
+ * Windows, where the file instead inherits the (user-scoped) %APPDATA% ACL.
+ */
 export function saveCredentials(creds: CredentialsFile): void {
   const dir = configDir();
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const target = credentialsPath();
-  const tmp = path.join(dir, `.credentials.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(tmp, JSON.stringify(creds, null, 2), { mode: 0o600 });
+  const tmp = path.join(dir, `.credentials.${randomUUID()}.tmp`);
+  fs.writeFileSync(tmp, JSON.stringify(creds, null, 2), { mode: 0o600, flag: 'wx' });
   fs.renameSync(tmp, target);
 }
 

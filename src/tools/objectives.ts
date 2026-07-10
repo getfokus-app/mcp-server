@@ -9,6 +9,8 @@ import {
   DATE_HINT,
   DESTRUCTIVE,
   Doc,
+  MAX_CONTENT_CHARS,
+  enc,
   READ_ONLY,
   UPDATE,
   WRITE,
@@ -102,7 +104,9 @@ export function registerObjectiveTools(server: McpServer, ctx: AppContext): void
     },
     async ({ objectiveId }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/objectives/${objectiveId}`);
+        const { data } = await ctx.client.request<{ data: Doc }>(
+          `/v1/objectives/${enc(objectiveId)}`,
+        );
         const objective = slimObjective(data);
         if (Array.isArray(data.tasks) && data.tasks.length > 0) {
           objective.tasks = data.tasks.map((t: Doc) => (typeof t === 'string' ? t : slimTask(t)));
@@ -126,7 +130,11 @@ export function registerObjectiveTools(server: McpServer, ctx: AppContext): void
         start: z.string().describe(`Period start. ${DATE_HINT}`),
         end: z.string().describe(`Period end. ${DATE_HINT}`),
         bucketId: z.string().optional(),
-        description: z.string().optional().describe('Description in markdown'),
+        description: z
+          .string()
+          .max(MAX_CONTENT_CHARS)
+          .optional()
+          .describe('Description in markdown'),
       },
       annotations: WRITE,
     },
@@ -169,10 +177,13 @@ export function registerObjectiveTools(server: McpServer, ctx: AppContext): void
     },
     async ({ objectiveId, bucketId, ...input }) =>
       run(async () => {
-        const { data } = await ctx.client.request<{ data: Doc }>(`/v1/objectives/${objectiveId}`, {
-          method: 'PUT',
-          body: compact({ ...input, bucket: bucketId }),
-        });
+        const { data } = await ctx.client.request<{ data: Doc }>(
+          `/v1/objectives/${enc(objectiveId)}`,
+          {
+            method: 'PUT',
+            body: compact({ ...input, bucket: bucketId }),
+          },
+        );
         return jsonResult('Objective updated', slimObjective(data));
       }),
   );
@@ -203,7 +214,7 @@ export function registerObjectiveTools(server: McpServer, ctx: AppContext): void
     async ({ objectiveId, targetPeriod }) =>
       run(async () => {
         const { data } = await ctx.client.request<{ data: Doc }>(
-          `/v1/objectives/${objectiveId}/rollover`,
+          `/v1/objectives/${enc(objectiveId)}/rollover`,
           { method: 'POST', body: targetPeriod ? { targetPeriod } : {} },
         );
         return jsonResult('Objective rolled over', slimObjective(data ?? {}));
@@ -221,7 +232,7 @@ export function registerObjectiveTools(server: McpServer, ctx: AppContext): void
     },
     async ({ objectiveId }) =>
       run(async () => {
-        await ctx.client.request(`/v1/objectives/${objectiveId}`, { method: 'DELETE' });
+        await ctx.client.request(`/v1/objectives/${enc(objectiveId)}`, { method: 'DELETE' });
         return textResult(`Objective ${objectiveId} deleted.`);
       }),
   );

@@ -1,6 +1,9 @@
 import { Lexer, type Token, type Tokens } from 'marked';
 
-import { TipTapMark, TipTapNode, linkMark, textNode } from './tiptap-types.js';
+import { TipTapMark, TipTapNode, isSafeUrl, linkMark, textNode } from './tiptap-types.js';
+
+/** Bail out of runaway nesting rather than overflow the stack on hostile input. */
+const MAX_DEPTH = 100;
 
 /**
  * Convert GitHub-flavored markdown into the stringified TipTap JSON the Fokus
@@ -13,13 +16,22 @@ export function markdownToTipTapJson(markdown: string): string {
 }
 
 export function markdownToTipTapDoc(markdown: string): TipTapNode {
-  const tokens = new Lexer({ gfm: true }).lex(markdown ?? '');
-  const content = blocks(tokens);
+  const source = markdown ?? '';
+  let content: TipTapNode[];
+  try {
+    // marked's lexer recurses; pathologically nested input can overflow the
+    // stack inside it, before our own depth guard runs. Fall back to storing
+    // the raw text as a single paragraph rather than throwing.
+    content = blocks(new Lexer({ gfm: true }).lex(source), 0);
+  } catch {
+    content = source ? [{ type: 'paragraph', content: [textNode(source)] }] : [];
+  }
   return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph' }] };
 }
 
-function blocks(tokens: Token[]): TipTapNode[] {
+function blocks(tokens: Token[], depth: number): TipTapNode[] {
   const out: TipTapNode[] = [];
+  if (depth > MAX_DEPTH) return out;
   for (const token of tokens) {
     switch (token.type) {
       case 'heading': {
@@ -27,18 +39,18 @@ function blocks(tokens: Token[]): TipTapNode[] {
         out.push({
           type: 'heading',
           attrs: { level: Math.min(Math.max(t.depth, 1), 6) },
-          content: inline(t.tokens),
+          content: inline(t.tokens, [], depth + 1),
         });
         break;
       }
       case 'paragraph': {
-        out.push(paragraph(inline((token as Tokens.Paragraph).tokens)));
+        out.push(paragraph(inline((token as Tokens.Paragraph).tokens, [], depth + 1)));
         break;
       }
       case 'text': {
         // top-level text appears inside tight list items
         const t = token as Tokens.Text;
-        out.push(paragraph(t.tokens ? inline(t.tokens) : [textNode(t.text)]));
+        out.push(paragraph(t.tokens ? inline(t.tokens, [], depth + 1) : [textNode(t.text)]));
         break;
       }
       case 'code': {
@@ -51,15 +63,18 @@ function blocks(tokens: Token[]): TipTapNode[] {
         break;
       }
       case 'blockquote': {
-        out.push({ type: 'blockquote', content: blocks((token as Tokens.Blockquote).tokens) });
+        out.push({
+          type: 'blockquote',
+          content: blocks((token as Tokens.Blockquote).tokens, depth + 1),
+        });
         break;
       }
       case 'list': {
-        out.push(list(token as Tokens.List));
+        out.push(list(token as Tokens.List, depth));
         break;
       }
       case 'table': {
-        out.push(table(token as Tokens.Table));
+        out.push(table(token as Tokens.Table, depth));
         break;
       }
       case 'hr': {
@@ -92,7 +107,7 @@ function paragraph(content: TipTapNode[]): TipTapNode {
   return node;
 }
 
-function list(token: Tokens.List): TipTapNode {
+function list(token: Tokens.List, depth: number): TipTapNode {
   const isTaskList = token.items.some((item) => item.task);
   if (isTaskList) {
     return {
@@ -100,13 +115,16 @@ function list(token: Tokens.List): TipTapNode {
       content: token.items.map((item) => ({
         type: 'taskItem',
         attrs: { checked: item.checked === true },
-        content: listItemBlocks(item),
+        content: listItemBlocks(item, depth),
       })),
     };
   }
   const node: TipTapNode = {
     type: token.ordered ? 'orderedList' : 'bulletList',
-    content: token.items.map((item) => ({ type: 'listItem', content: listItemBlocks(item) })),
+    content: token.items.map((item) => ({
+      type: 'listItem',
+      content: listItemBlocks(item, depth),
+    })),
   };
   if (token.ordered && typeof token.start === 'number' && token.start !== 1) {
     node.attrs = { start: token.start };
@@ -114,40 +132,40 @@ function list(token: Tokens.List): TipTapNode {
   return node;
 }
 
-function listItemBlocks(item: Tokens.ListItem): TipTapNode[] {
-  const content = blocks(item.tokens);
+function listItemBlocks(item: Tokens.ListItem, depth: number): TipTapNode[] {
+  const content = blocks(item.tokens, depth + 1);
   // list items must contain at least one block
   return content.length > 0 ? content : [{ type: 'paragraph' }];
 }
 
-function table(token: Tokens.Table): TipTapNode {
+function table(token: Tokens.Table, depth: number): TipTapNode {
   const headerRow: TipTapNode = {
     type: 'tableRow',
-    content: token.header.map((cell) => tableCell('tableHeader', cell.tokens)),
+    content: token.header.map((cell) => tableCell('tableHeader', cell.tokens, depth)),
   };
   const bodyRows = token.rows.map((row) => ({
     type: 'tableRow',
-    content: row.map((cell) => tableCell('tableCell', cell.tokens)),
+    content: row.map((cell) => tableCell('tableCell', cell.tokens, depth)),
   }));
   return { type: 'table', content: [headerRow, ...bodyRows] };
 }
 
-function tableCell(type: 'tableHeader' | 'tableCell', tokens: Token[]): TipTapNode {
+function tableCell(type: 'tableHeader' | 'tableCell', tokens: Token[], depth: number): TipTapNode {
   return {
     type,
     attrs: { colspan: 1, rowspan: 1 },
-    content: [paragraph(inline(tokens))],
+    content: [paragraph(inline(tokens, [], depth + 1))],
   };
 }
 
-function inline(tokens: Token[] | undefined, marks: TipTapMark[] = []): TipTapNode[] {
-  if (!tokens) return [];
+function inline(tokens: Token[] | undefined, marks: TipTapMark[], depth: number): TipTapNode[] {
+  if (!tokens || depth > MAX_DEPTH) return [];
   const out: TipTapNode[] = [];
   for (const token of tokens) {
     switch (token.type) {
       case 'text': {
         const t = token as Tokens.Text;
-        if (t.tokens && t.tokens.length > 0) out.push(...inline(t.tokens, marks));
+        if (t.tokens && t.tokens.length > 0) out.push(...inline(t.tokens, marks, depth + 1));
         else if (t.text) out.push(textNode(t.text, marks.slice()));
         break;
       }
@@ -156,15 +174,19 @@ function inline(tokens: Token[] | undefined, marks: TipTapMark[] = []): TipTapNo
         break;
       }
       case 'strong': {
-        out.push(...inline((token as Tokens.Strong).tokens, [...marks, { type: 'bold' }]));
+        out.push(
+          ...inline((token as Tokens.Strong).tokens, [...marks, { type: 'bold' }], depth + 1),
+        );
         break;
       }
       case 'em': {
-        out.push(...inline((token as Tokens.Em).tokens, [...marks, { type: 'italic' }]));
+        out.push(...inline((token as Tokens.Em).tokens, [...marks, { type: 'italic' }], depth + 1));
         break;
       }
       case 'del': {
-        out.push(...inline((token as Tokens.Del).tokens, [...marks, { type: 'strike' }]));
+        out.push(
+          ...inline((token as Tokens.Del).tokens, [...marks, { type: 'strike' }], depth + 1),
+        );
         break;
       }
       case 'codespan': {
@@ -173,15 +195,22 @@ function inline(tokens: Token[] | undefined, marks: TipTapMark[] = []): TipTapNo
       }
       case 'link': {
         const t = token as Tokens.Link;
-        out.push(...inline(t.tokens, [...marks, linkMark(t.href)]));
+        // drop the link mark for unsafe schemes (javascript:, data:...) but keep the text
+        const linkMarks = isSafeUrl(t.href) ? [...marks, linkMark(t.href)] : marks;
+        out.push(...inline(t.tokens, linkMarks, depth + 1));
         break;
       }
       case 'image': {
         const t = token as Tokens.Image;
-        out.push({
-          type: 'image',
-          attrs: { src: t.href, alt: t.text || null, title: t.title || null },
-        });
+        // skip images with unsafe src; keep the alt text so nothing is silently lost
+        if (isSafeUrl(t.href)) {
+          out.push({
+            type: 'image',
+            attrs: { src: t.href, alt: t.text || null, title: t.title || null },
+          });
+        } else if (t.text) {
+          out.push(textNode(t.text, marks.slice()));
+        }
         break;
       }
       case 'br': {

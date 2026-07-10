@@ -67,6 +67,34 @@ describe('markdownToTipTapDoc', () => {
   it('produces an empty paragraph for empty input', () => {
     expect(markdownToTipTapDoc('').content).toEqual([{ type: 'paragraph' }]);
   });
+
+  it('drops the link mark for unsafe schemes but keeps the text', () => {
+    const doc = markdownToTipTapDoc('[click](javascript:alert(1)) and [ok](https://x.com)');
+    const marks = doc.content?.[0]?.content?.flatMap((n) => n.marks ?? []) ?? [];
+    const hrefs = marks.filter((m) => m.type === 'link').map((m) => m.attrs?.href);
+    expect(hrefs).toEqual(['https://x.com']); // javascript: link demoted to plain text
+    expect(JSON.stringify(doc)).toContain('click'); // text preserved
+    expect(JSON.stringify(doc)).not.toContain('javascript:');
+  });
+
+  it('keeps http/https/mailto and relative links', () => {
+    for (const href of ['https://x.com', 'http://x.com', 'mailto:a@b.com', '/relative']) {
+      const doc = markdownToTipTapDoc(`[t](${href})`);
+      const mark = doc.content?.[0]?.content?.[0]?.marks?.find((m) => m.type === 'link');
+      expect(mark?.attrs?.href, href).toBe(href);
+    }
+  });
+
+  it('drops images with unsafe src, keeping alt text', () => {
+    const doc = markdownToTipTapDoc('![alt](data:text/html,<script>evil</script>)');
+    expect(JSON.stringify(doc)).not.toContain('data:text/html');
+    expect(JSON.stringify(doc)).toContain('alt');
+  });
+
+  it('does not overflow the stack on deeply nested markdown', () => {
+    const deep = '> '.repeat(5000) + 'x';
+    expect(() => markdownToTipTapJson(deep)).not.toThrow();
+  });
 });
 
 describe('tipTapJsonToMarkdown', () => {
@@ -130,6 +158,23 @@ describe('tipTapJsonToMarkdown', () => {
     expect(tipTapJsonToMarkdown('{"type":"doc"')).toBe('{"type":"doc"');
     expect(tipTapJsonToMarkdown('{"type":"doc","content":[{"type":"text"}]}')).toBeDefined();
     expect(tipTapJsonToMarkdown('null')).toBe('null');
+  });
+
+  it('truncates instead of overflowing the stack on a deeply nested stored doc', () => {
+    // built as a raw string so the test's own JSON.stringify doesn't overflow;
+    // 500 levels comfortably exceeds the renderer's depth cap (100)
+    const depth = 500;
+    const doc =
+      '{"type":"doc","content":[' +
+      '{"type":"blockquote","content":['.repeat(depth) +
+      '{"type":"paragraph","content":[{"type":"text","text":"deep"}]}' +
+      ']}'.repeat(depth) +
+      ']}';
+    let out = '';
+    expect(() => {
+      out = tipTapJsonToMarkdown(doc);
+    }).not.toThrow();
+    expect(out).toContain('truncated');
   });
 });
 

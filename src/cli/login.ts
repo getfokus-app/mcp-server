@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 
 import { Profile, loadCredentials, persistProfile } from '../auth/credentials.js';
-import { DEFAULT_API_URL, normalizeApiUrl } from '../config.js';
+import { DEFAULT_API_URL, isInsecureApiUrl, normalizeApiUrl } from '../config.js';
 import { ask, askHidden } from './prompts.js';
 
 interface TokenPair {
@@ -153,6 +153,9 @@ export async function login(args: string[]): Promise<void> {
     flags.apiUrl ?? process.env.FOKUS_API_URL ?? creds.defaultApiUrl ?? DEFAULT_API_URL,
   );
   console.log(`Signing in to ${apiUrl}`);
+  if (isInsecureApiUrl(apiUrl)) {
+    console.log('⚠️  This URL uses plain http — your tokens would be sent unencrypted. Use https.');
+  }
 
   const tokens =
     flags.oauth !== undefined || flags.code !== undefined

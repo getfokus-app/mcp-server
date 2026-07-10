@@ -9,6 +9,17 @@ import { tipTapJsonToMarkdown } from '../markdown/tiptap-to-md.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Doc = Record<string, any>;
 
+/**
+ * URL-encode an id before interpolating it into a request path. Tool ids come
+ * from LLM calls and are otherwise unconstrained strings; without encoding an
+ * id like "../workspaces/<id>" would traverse to a different resource type
+ * (e.g. delete_task escalating to deleting a workspace), and "x?foo=bar" would
+ * smuggle query parameters. encodeURIComponent turns "/" and "?" inert.
+ */
+export function enc(id: string): string {
+  return encodeURIComponent(id);
+}
+
 /** Extract an id from either a raw id string or a populated reference object. */
 export function refId(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
@@ -20,6 +31,15 @@ export const DATE_HINT =
   'ISO 8601; include a UTC offset for times (e.g. 2026-07-15T14:00:00+02:00) — ' +
   'call get_current_datetime for the user timezone.';
 
+/** Upper bound on rich-text content accepted by write tools / returned by read tools. */
+export const MAX_CONTENT_CHARS = 100_000;
+
+/** Truncate very large content so a huge (possibly planted) note can't flood the LLM context. */
+export function capContent(markdown: string): string {
+  if (markdown.length <= MAX_CONTENT_CHARS) return markdown;
+  return `${markdown.slice(0, MAX_CONTENT_CHARS)}\n\n[truncated: content exceeds ${MAX_CONTENT_CHARS} characters]`;
+}
+
 /** Fetch an activity's description note (isDescription) and return it as markdown. */
 export async function fetchDescriptionMarkdown(
   ctx: AppContext,
@@ -29,7 +49,7 @@ export async function fetchDescriptionMarkdown(
     query: buildListQuery({ filter: { activity: activityId, isDescription: true }, limit: 1 }),
   });
   const note = res.data?.[0];
-  return note ? tipTapJsonToMarkdown(String(note.content ?? '')) : undefined;
+  return note ? capContent(tipTapJsonToMarkdown(String(note.content ?? ''))) : undefined;
 }
 
 export function paginationHeader(ctx: AppContext, label: string, res: ListResponse<Doc>): string {
