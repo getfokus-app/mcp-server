@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildListQuery, containsRegex, dateRange, escapeRegex } from '../src/api/query.js';
 
 describe('buildListQuery', () => {
-  it('serializes filter as JSON with sort/page/limit', () => {
+  it('serializes filter as JSON with sort/page/limit, $eq-wrapping scalars', () => {
     const qs = buildListQuery({
       filter: { isCompleted: false, doDate: { $gte: '2026-07-01' } },
       sort: '-createdAt',
@@ -11,8 +11,10 @@ describe('buildListQuery', () => {
       limit: 20,
     });
     const params = new URLSearchParams(qs);
+    // scalars become {$eq}: the fps validator rejects filters mixing plain
+    // values with operator objects
     expect(JSON.parse(params.get('filter')!)).toEqual({
-      isCompleted: false,
+      isCompleted: { $eq: false },
       doDate: { $gte: '2026-07-01' },
     });
     expect(params.get('sort')).toBe('-createdAt');
