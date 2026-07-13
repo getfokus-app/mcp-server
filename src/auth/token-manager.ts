@@ -7,6 +7,7 @@ import {
   persistProfile,
   setProfile,
 } from './credentials.js';
+import type { TokenProvider } from './token-provider.js';
 
 export class AuthRequiredError extends Error {
   constructor(
@@ -36,7 +37,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * rotated already), writes are atomic merges, and a rejected refresh gets one retry
  * against freshly re-read disk state before the session is declared dead.
  */
-export class TokenManager {
+export class TokenManager implements TokenProvider {
   readonly apiUrl: string;
   #creds: CredentialsFile;
   #refreshing: Promise<string> | null = null;

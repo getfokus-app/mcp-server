@@ -1,11 +1,20 @@
 {
   "name": "@fokus-app/mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official MCP server for Fokus — manage tasks, notes, calendar, and objectives from any AI assistant",
   "license": "MIT",
   "type": "module",
   "bin": {
     "fokus-mcp": "dist/index.js"
+  },
+  "main": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js",
+      "require": "./dist/lib.js"
+    }
   },
   "files": [
     "dist",

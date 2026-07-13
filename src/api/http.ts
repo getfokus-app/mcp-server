@@ -1,4 +1,4 @@
-import { TokenManager } from '../auth/token-manager.js';
+import { TokenProvider } from '../auth/token-provider.js';
 import { Session } from '../session.js';
 
 export class ApiError extends Error {
@@ -32,7 +32,7 @@ function extractMessage(json: unknown, res: Response): string {
 
 export class FokusClient {
   constructor(
-    private readonly tokens: TokenManager,
+    private readonly tokens: TokenProvider,
     private readonly session: Session,
   ) {}
 

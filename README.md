@@ -6,7 +6,26 @@ The official [Model Context Protocol](https://modelcontextprotocol.io) server fo
 - **Markdown in, markdown out** — note and description content is converted to/from the Fokus editor format, so formatting (headings, task lists, tables, code blocks) renders properly in the app
 - Workspace-aware, with tool annotations so clients can warn before destructive actions
 
-## Quick start
+Two ways to connect: the **hosted** server (a remote Streamable HTTP endpoint, nothing to
+install) or the **local** stdio server / CLI below.
+
+## Hosted (remote) server
+
+Fokus hosts the same MCP server at `https://api.getfokus.com/mcp` (Streamable HTTP). Mint a
+long-lived bearer token and add it to any remote-MCP client — no local install:
+
+```bash
+npx -y @fokus-app/mcp login            # once, to authenticate the CLI
+npx -y @fokus-app/mcp token create --label "Claude Code"
+# prints:  claude mcp add --transport http fokus https://api.getfokus.com/mcp \
+#            --header "Authorization: Bearer <token>"
+```
+
+Tokens don't expire from idleness. Manage them with `fokus-mcp token list` and
+`fokus-mcp token revoke <id>`. Self-hosters point at their own `/mcp` (set `MCP_INTERNAL_API_URL`
+on the backend and use `--api-url` when minting).
+
+## Quick start (local stdio server)
 
 **1. Log in once** (stores rotating tokens in `~/.config/fokus-mcp/credentials.json`, `0600`):
 
@@ -53,6 +72,7 @@ Cursor (`.cursor/mcp.json`): same shape as Claude Desktop.
 | `fokus-mcp logout`                                                       | Revoke the session server-side and delete local credentials      |
 | `fokus-mcp whoami`                                                       | Show the logged-in user, timezone, workspace, and session expiry |
 | `fokus-mcp workspace [id\|name]`                                         | List workspaces or change the default                            |
+| `fokus-mcp token [create\|list\|revoke <id>] [--label <name>]`           | Manage bearer tokens for the hosted (remote) MCP server          |
 | `fokus-mcp tools [--json]`                                               | List all tools (`--json` includes input schemas)                 |
 | `fokus-mcp tool <name> ['<json-args>' \| -]`                             | Invoke a tool directly, without an MCP client (see below)        |
 
@@ -109,7 +129,7 @@ invocation here — use `fokus-mcp workspace <id|name>` to switch persistently.
 
 ```bash
 npm install
-npm run build          # tsup → dist/index.js
+npm run build          # tsup → dist/index.js (CLI bin) + dist/lib.js (library entry)
 npm test               # unit tests (markdown conversion, query builder, token manager)
 npm run types:check
 
@@ -119,6 +139,14 @@ FOKUS_E2E=1 npx vitest run tests/integration
 # poke at it interactively:
 npx @modelcontextprotocol/inspector node dist/index.js
 ```
+
+### Library entry (embedding the server)
+
+The package also exposes a side-effect-free library entry (`import { buildServer,
+createHostedContext, StreamableHTTPServerTransport } from '@fokus-app/mcp'`) used by the Fokus
+backend to host the server over Streamable HTTP: `createHostedContext` forwards the caller's
+bearer token to the REST API (no local credentials), and `buildServer` registers the same 44
+tools onto an `McpServer`. Importing this entry does not start the stdio server.
 
 ## Roadmap (v1.1)
 
