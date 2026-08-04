@@ -5,6 +5,7 @@ import { VERSION } from './config.js';
 import { AppContext, createContext } from './context.js';
 import { registerBucketTools } from './tools/buckets.js';
 import { registerEventTools } from './tools/events.js';
+import { registerGuideTools } from './tools/guide.js';
 import { registerMetaTools } from './tools/meta.js';
 import { registerMiscTools } from './tools/misc.js';
 import { registerNoteTools } from './tools/notes.js';
@@ -26,6 +27,7 @@ export function buildRegistry(ctx: AppContext): ToolRegistry {
   registerObjectiveTools(registry, ctx);
   registerMiscTools(registry, ctx);
   registerSearchTools(registry, ctx);
+  registerGuideTools(registry, ctx);
   registerScheduleTools(registry, ctx);
   registerSchedulingTools(registry, ctx);
   return registry;

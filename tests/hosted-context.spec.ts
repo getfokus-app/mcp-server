@@ -23,7 +23,7 @@ describe('createHostedContext', () => {
     readSpy.mockRestore();
   });
 
-  it('serves all 44 tools over the MCP protocol', async () => {
+  it('serves all 45 tools over the MCP protocol', async () => {
     const ctx = createHostedContext({
       apiUrl: 'https://api.test',
       accessToken: 'tok',
@@ -35,7 +35,7 @@ describe('createHostedContext', () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(44);
+    expect(tools).toHaveLength(45);
 
     await client.close();
     await server.close();

@@ -1,6 +1,6 @@
 {
   "name": "@fokus-app/mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Official MCP server for Fokus — manage tasks, notes, calendar, and objectives from any AI assistant",
   "license": "MIT",
   "type": "module",
