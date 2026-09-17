@@ -67,6 +67,7 @@ function renderBlock(node: TipTapNode, depth: number): string {
         node.content ?? [],
         (_, item) => (item.attrs?.checked === true ? '- [x] ' : '- [ ] '),
         depth,
+        2,
       );
     case 'horizontalRule':
       return '---';
@@ -97,13 +98,26 @@ function renderListItems(
   items: TipTapNode[],
   prefix: (index: number, item: TipTapNode) => string,
   depth: number,
+  /**
+   * Columns to indent continuation lines by. Defaults to the marker width,
+   * which is what bullets and ordered items need.
+   *
+   * Task lists must pass 2. Their marker renders as `- [ ] `, but only the
+   * leading `- ` is the list marker — the checkbox is content. Indenting
+   * continuations all six columns puts them four past the content column,
+   * where markdown reads them back as an indented code block; the next render
+   * fences that block, and the one after fences the fence. A note with anything
+   * nested under a task then never reaches a fixed point, growing a new pair of
+   * ``` on every round trip.
+   */
+  indentWidth?: number,
 ): string {
   return items
     .map((item, i) => {
       const marker = prefix(i, item);
       const body = renderBlocks(item.content ?? [], depth + 1);
       const lines = body.split('\n');
-      const indent = ' '.repeat(marker.length);
+      const indent = ' '.repeat(indentWidth ?? marker.length);
       return lines
         .map((line, lineIndex) => (lineIndex === 0 ? `${marker}${line}` : `${indent}${line}`))
         .join('\n');

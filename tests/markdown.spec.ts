@@ -219,3 +219,57 @@ describe('round trip', () => {
     expect(once).toContain('| h1 | h2 |');
   });
 });
+
+/**
+ * A task list holding a nested task list must reach a fixed point.
+ *
+ * Found in a real Obsidian vault, where the file on disk had been rewritten to
+ * `- [ ] [ ] [ ] [ ] write it up`. The renderer emits a blank line inside any
+ * item containing a nested list, which makes the list LOOSE; marked then moves
+ * the checkbox into inline position, where `inline()` had no case for it and
+ * wrote a literal "[ ] " into the text. The renderer prefixed that with a
+ * marker of its own, so every conversion added one more.
+ *
+ * The backend's copy of this converter carried the same defect. Here it
+ * corrupts notes written through MCP.
+ */
+describe('nested task lists converge', () => {
+  const NESTED = [
+    '# Weekly plan',
+    '',
+    '- [ ] ship the plugin',
+    '  - [ ] wave 2',
+    '- [ ] write it up',
+  ].join('\n');
+
+  const pass = (markdown: string) =>
+    tipTapJsonToMarkdown(JSON.stringify(markdownToTipTapDoc(markdown)));
+
+  it('reaches a fixed point rather than growing on every pass', () => {
+    const once = pass(NESTED);
+    const twice = pass(once);
+    const thrice = pass(twice);
+
+    expect(thrice).toBe(twice);
+  });
+
+  it('never accumulates checkbox markers', () => {
+    let markdown = NESTED;
+    for (let i = 0; i < 5; i++) markdown = pass(markdown);
+
+    expect(markdown).not.toContain('[ ] [ ]');
+    expect(markdown).toContain('- [ ] write it up');
+  });
+
+  /** The inline checkbox token is dropped, not rendered as text. */
+  it('puts the checkbox state on the item rather than in its text', () => {
+    const loose = ['- [ ] parent', '  ', '  - [ ] child', '- [ ] sibling'].join('\n');
+
+    const doc = markdownToTipTapDoc(loose);
+    const list = (doc.content ?? []).find((n) => n.type === 'taskList');
+    const sibling = list?.content?.[1];
+
+    expect(sibling).toMatchObject({ type: 'taskItem', attrs: { checked: false } });
+    expect(JSON.stringify(sibling)).not.toContain('[ ] ');
+  });
+});

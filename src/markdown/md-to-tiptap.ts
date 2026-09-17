@@ -217,6 +217,16 @@ function inline(tokens: Token[] | undefined, marks: TipTapMark[], depth: number)
         out.push({ type: 'hardBreak' });
         break;
       }
+      // The checkbox state already lives on the task item's `checked` flag.
+      // `blocks()` has always skipped it, but marked moves it into INLINE
+      // position as soon as the list is loose — and a loose list is exactly what
+      // the renderer produces, because it emits a blank line inside any item
+      // holding a nested list. Falling through to `default` wrote a literal
+      // "[ ] " into the text, which the renderer then prefixed with a marker of
+      // its own: every round trip added one more, so `- [ ] write it up` became
+      // `- [ ] [ ] [ ] [ ] write it up` and the document never converged.
+      case 'checkbox':
+        break;
       case 'html': {
         const raw = (token as Tokens.HTML).raw;
         if (raw) out.push(textNode(raw, marks.slice()));
