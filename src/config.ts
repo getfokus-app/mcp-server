@@ -1,7 +1,9 @@
 import os from 'node:os';
 import path from 'node:path';
 
-export const VERSION = '0.2.1';
+import pkg from '../package.json' with { type: 'json' };
+
+export const VERSION: string = pkg.version;
 export const DEFAULT_API_URL = 'https://api.getfokus.com';
 
 /**
