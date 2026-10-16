@@ -2,7 +2,7 @@
 
 The official [Model Context Protocol](https://modelcontextprotocol.io) server for [Fokus](https://getfokus.com) — manage your tasks, calendar, notes, and objectives from Claude Desktop, Claude Code, Cursor, or any other MCP client.
 
-- **44 tools** across tasks, events, notes, buckets, objectives, tags, reminders, calendars, unified search, day/week agenda, and the Fokus auto-scheduler
+- **45 tools** across tasks, events, notes, buckets, objectives, tags, reminders, calendars, unified search, day/week agenda, the Fokus user guide, and the Fokus auto-scheduler
 - **Markdown in, markdown out** — note and description content is converted to/from the Fokus editor format, so formatting (headings, task lists, tables, code blocks) renders properly in the app
 - Workspace-aware, with tool annotations so clients can warn before destructive actions
 
@@ -89,6 +89,7 @@ Cursor (`.cursor/mcp.json`): same shape as Claude Desktop.
 | Tags / Reminders / Calendars | `list_tags`, `create_tag`, `list_reminders`, `create_reminder`, `update_reminder`, `delete_reminder`, `list_calendars` |
 | Search & agenda              | `search`, `get_schedule`                                                                                               |
 | Auto-scheduling              | `auto_schedule_tasks`, `get_scheduling_job`, `apply_scheduling_job`, `cancel_scheduling_job`                           |
+| Fokus user guide             | `search_fokus_guide` — search guide.getfokus.com for how Fokus itself works, with citable deep links                   |
 
 Recurring tasks/events are created by passing `recurringPattern` (an RRULE set incl. `DTSTART`) to `create_task` / `create_event`.
 
@@ -145,7 +146,7 @@ npx @modelcontextprotocol/inspector node dist/index.js
 The package also exposes a side-effect-free library entry (`import { buildServer,
 createHostedContext, StreamableHTTPServerTransport } from '@fokus-app/mcp'`) used by the Fokus
 backend to host the server over Streamable HTTP: `createHostedContext` forwards the caller's
-bearer token to the REST API (no local credentials), and `buildServer` registers the same 44
+bearer token to the REST API (no local credentials), and `buildServer` registers the same 45
 tools onto an `McpServer`. Importing this entry does not start the stdio server.
 
 ## Roadmap (v1.1)

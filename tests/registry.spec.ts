@@ -9,7 +9,8 @@ describe('buildRegistry', () => {
 
   it('collects every tool with a unique name and a description', () => {
     const names = registry.tools.map((t) => t.name);
-    expect(names.length).toBeGreaterThanOrEqual(44);
+    expect(names).toContain('search_fokus_guide');
+    expect(names.length).toBe(45);
     expect(new Set(names).size).toBe(names.length);
     for (const tool of registry.tools) {
       expect(tool.config.description, tool.name).toBeTruthy();
